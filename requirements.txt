@@ -1,9 +1,8 @@
 fastapi
 uvicorn
-pydantic
+pandas
 ccxt
 ta
-xgboost
 scikit-learn
-pandas
-numpy
+tensorflow==2.12.0
+
