@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Señal de Trading BTC</title>
+  <meta http-equiv="refresh" content="30">
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; }
+    .signal { font-size: 48px; margin-top: 20px; }
+    .info { font-size: 24px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>🔁 Señal Actual del Bot</h1>
+  <div id="content">Cargando señal...</div>
+
+  <script>
+    fetch('/signal')
+      .then(res => res.json())
+      .then(data => {
+        const html = `
+          <div class="signal">${data.signal}</div>
+          <div class="info">💵 Precio: $${data.price.toFixed(2)}</div>
+          <div class="info">📈 Confianza: ${data.confidence}</div>
+          <div class="info">⏱️ Se actualiza cada 30 segundos</div>
+        `;
+        document.getElementById('content').innerHTML = html;
+      })
+      .catch(err => {
+        document.getElementById('content').innerText = "❌ Error al obtener señal.";
+      });
+  </script>
+</body>
+</html>
+
+
