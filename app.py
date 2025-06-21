@@ -12,8 +12,33 @@ import requests
 
 app = FastAPI()
 
+# ⚙️ Parámetros de Telegram
 TELEGRAM_TOKEN = '7666801859:AAFPwyWI_gPtqJO9CxJzUHyi1hu9eEQAj-c'
 CHAT_ID = '7361418502'
+
+# ✅ Obtener datos desde BingX o KuCoin
+
+def get_ohlcv(symbol="BTC/USDT", timeframe="5m", limit=300):
+    if symbol in ["NAS100USDT", "US30USDT", "SPX500USDT", "XAUUSDT", "EURUSD", "GBPUSD"]:
+        url = "https://open-api.bingx.com/openApi/market/kline"
+        params = {"symbol": symbol, "interval": timeframe, "limit": limit}
+        response = requests.get(url, params=params)
+        data = response.json()
+        if data["code"] != 0:
+            raise Exception("BingX error: " + data["msg"])
+        df = pd.DataFrame(data["data"], columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df.set_index("timestamp", inplace=True)
+        df = df.astype(float)
+    else:
+        exchange = ccxt.kucoin()
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+        df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df.set_index("timestamp", inplace=True)
+    return df
+
+# 📡 Enviar notificación
 
 def enviar_telegram(mensaje):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -26,13 +51,10 @@ def enviar_telegram(mensaje):
 @app.get("/signal")
 async def get_signal():
     try:
-        exchange = ccxt.kucoin()
-        ohlcv = exchange.fetch_ohlcv("BTC/USDT", timeframe="5m", limit=300)
-        df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df.set_index("timestamp", inplace=True)
+        symbol = "NAS100USDT"  # Cambiar aquí para probar otro activo
+        df = get_ohlcv(symbol, timeframe="5m", limit=300)
 
-        # Indicadores técnicos
+        # ▶️ Indicadores
         df["rsi"] = RSIIndicator(close=df["close"]).rsi()
         df["ema20"] = EMAIndicator(close=df["close"], window=20).ema_indicator()
         df["ema50"] = EMAIndicator(close=df["close"], window=50).ema_indicator()
@@ -43,29 +65,15 @@ async def get_signal():
         df["atr"] = atr.average_true_range()
         df["trend"] = np.where(df["ema20"] > df["ema50"], 1, np.where(df["ema20"] < df["ema50"], -1, 0))
 
-        # Indicador líder: On-Balance Volume (OBV)
-        df['obv'] = (np.sign(df['close'].diff()) * df['volume']).fillna(0).cumsum()
-
-        # Velas japonesas básicas: engulfing
-        df['bullish_engulfing'] = (df['close'].shift(1) < df['open'].shift(1)) & (df['close'] > df['open']) & (df['close'] > df['open'].shift(1)) & (df['open'] < df['close'].shift(1))
-        df['bearish_engulfing'] = (df['close'].shift(1) > df['open'].shift(1)) & (df['close'] < df['open']) & (df['close'] < df['open'].shift(1)) & (df['open'] > df['close'].shift(1))
-
-        # Patrón chartista simple: Doble fondo (2 mínimos cercanos y rebote)
-        df['double_bottom'] = (df['low'].shift(2) > df['low'].shift(1)) & (df['low'].shift(1) < df['low']) & (df['close'] > df['close'].shift(1))
-
-        # Volumen anormal: cuando el volumen es 1.5x mayor que el promedio
-        df['vol_anormal'] = df['volume'] > (df['volume'].rolling(20).mean() * 1.5)
-
-        # Señales
         df["signal"] = 0
-        df.loc[(df["macd"] > df["macd_signal"]) & (df["rsi"] < 50) & (df["trend"] == 1) & df['vol_anormal'], "signal"] = 1
-        df.loc[(df["macd"] < df["macd_signal"]) & (df["rsi"] > 50) & (df["trend"] == -1) & df['vol_anormal'], "signal"] = -1
+        df.loc[(df["macd"] > df["macd_signal"]) & (df["rsi"] < 50) & (df["trend"] == 1), "signal"] = 1
+        df.loc[(df["macd"] < df["macd_signal"]) & (df["rsi"] > 50) & (df["trend"] == -1), "signal"] = -1
 
         df.dropna(inplace=True)
         if len(df) < 100:
             return {"signal": "⏸️ NEUTRO", "confidence": "0%", "price": df['close'].iloc[-1]}
 
-        X = df[["rsi", "ema20", "ema50", "macd", "macd_signal", "atr", "trend", "obv"]]
+        X = df[["rsi", "ema20", "ema50", "macd", "macd_signal", "atr", "trend"]]
         y = df["signal"].replace({-1: 0, 0: 1, 1: 2})
 
         if y.nunique() < 2:
@@ -84,9 +92,8 @@ async def get_signal():
         pred = 1 if max_proba < 0.6 else pred
         pred_label = {0: "🔻 VENTA", 1: "⏸️ NEUTRO", 2: "🔺 COMPRA"}[pred]
 
-        mensaje = f"Señal: {pred_label}\nConfianza: {max_proba:.2%}\nPrecio: {df['close'].iloc[-1]:.2f}"
-        if pred != 1:
-            enviar_telegram(mensaje)
+        mensaje = f"{symbol}\n📈 Señal: {pred_label}\n🤖 Confianza: {max_proba:.2%}\n💵 Precio: {df['close'].iloc[-1]:.2f}"
+        enviar_telegram(mensaje)
 
         return {
             "signal": pred_label,
