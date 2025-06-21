@@ -11,15 +11,14 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score
 import requests
-from datetime import datetime
 
 app = FastAPI()
 
 TELEGRAM_TOKEN = '7666801859:AAFPwyWI_gPtqJO9CxJzUHyi1hu9eEQAj-c'
 CHAT_ID = '7361418502'
 
-# Lista para guardar historial de señales
-historial = []
+# Historial de señales (máximo 5)
+historial_senales = []
 
 def enviar_telegram(mensaje):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -38,7 +37,6 @@ async def get_signal():
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
         df.set_index("timestamp", inplace=True)
 
-        # Indicadores técnicos
         df["rsi"] = RSIIndicator(close=df["close"]).rsi()
         df["ema20"] = EMAIndicator(close=df["close"], window=20).ema_indicator()
         df["ema50"] = EMAIndicator(close=df["close"], window=50).ema_indicator()
@@ -49,6 +47,9 @@ async def get_signal():
         df["atr"] = atr.average_true_range()
         df["trend"] = np.where(df["ema20"] > df["ema50"], 1, np.where(df["ema20"] < df["ema50"], -1, 0))
         df['obv'] = (np.sign(df['close'].diff()) * df['volume']).fillna(0).cumsum()
+        df['bullish_engulfing'] = (df['close'].shift(1) < df['open'].shift(1)) & (df['close'] > df['open']) & (df['close'] > df['open'].shift(1)) & (df['open'] < df['close'].shift(1))
+        df['bearish_engulfing'] = (df['close'].shift(1) > df['open'].shift(1)) & (df['close'] < df['open']) & (df['close'] < df['open'].shift(1)) & (df['open'] > df['close'].shift(1))
+        df['double_bottom'] = (df['low'].shift(2) > df['low'].shift(1)) & (df['low'].shift(1) < df['low']) & (df['close'] > df['close'].shift(1))
         df['vol_anormal'] = df['volume'] > (df['volume'].rolling(20).mean() * 1.2)
 
         df["signal"] = 0
@@ -82,7 +83,7 @@ async def get_signal():
         probas = model.predict_proba(last_row)[0]
         max_proba = max(probas)
         pred = 1 if max_proba < 0.5 else pred
-        pred_label = {0: "🔻 VENTA", 1: "⏸️ NEUTRO", 2: "🔺 COMPRA"}[pred]
+        pred_label = {0: "🔻 VENTA", 1: "⏸️ NEUTRO", 2: "🔹 COMPRA"}[pred]
 
         price = df['close'].iloc[-1]
         tp = round(price + 2 * df['atr'].iloc[-1], 2)
@@ -92,15 +93,14 @@ async def get_signal():
         if pred != 1:
             enviar_telegram(mensaje)
 
-        # Guardar historial (máx 5)
-        historial.append({
-            "time": datetime.now().strftime("%H:%M:%S"),
+        # Guardar en historial
+        historial_senales.append({
             "signal": pred_label,
-            "price": round(price, 2),
-            "confidence": f"{max_proba:.2%}"
+            "price": price,
+            "confidence": f"{max_proba:.2%}",
+            "tp": tp,
+            "sl": sl
         })
-        if len(historial) > 5:
-            historial.pop(0)
 
         return {
             "signal": pred_label,
@@ -117,12 +117,13 @@ async def get_signal():
 
 @app.get("/history")
 async def get_history():
-    return historial
+    return {"historial": historial_senales[-5:]}
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     with open("frontend.html", "r", encoding="utf-8") as f:
         return f.read()
+
 
 
 
