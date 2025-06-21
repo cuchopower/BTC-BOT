@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Señal de Trading BTC</title>
-  <meta http-equiv="refresh" content="30">
+  <meta http-equiv="refresh" content="300">
   <style>
     body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f4f4f4; }
     .signal { font-size: 48px; margin-top: 20px; }
@@ -34,7 +34,7 @@
           <div class="info">🎯 TP: $${current.tp}</div>
           <div class="info">🛑 SL: $${current.sl}</div>
           <div class="info">✅ Accuracy: ${current.accuracy}% | F1: ${current.f1_score}%</div>
-          <div class="info">⏱️ Se actualiza cada 30 segundos</div>
+          <div class="info">⏱️ Se actualiza cada 300 segundos</div>
         `;
 
         const historyRes = await fetch('/history');
