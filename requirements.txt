@@ -1,12 +1,13 @@
-fastapi
-uvicorn
-ccxt
-pandas
-numpy
-scikit-learn
-xgboost
-ta
-requests
+fastapi==0.111.0
+uvicorn==0.30.1
+ccxt==4.2.100
+pandas==2.2.2
+numpy==1.26.4
+ta==0.11.0
+scikit-learn==1.4.2
+xgboost==2.0.3
+requests==2.32.3
+
 
 
 
