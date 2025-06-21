@@ -1,11 +1,11 @@
 fastapi
-uvicorn
 ccxt
 pandas
 numpy
 ta
-scikit-learn
 xgboost
+scikit-learn
+uvicorn
 requests
 
 
