@@ -7,7 +7,7 @@ ta
 xgboost
 scikit-learn
 requests
-jinja2
+
 
 
 
