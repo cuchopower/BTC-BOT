@@ -1,83 +1,62 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Señal de Trading</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0d1117;
-      color: #f0f6fc;
-      text-align: center;
-      padding: 30px;
-    }
-    h1 {
-      color: #58a6ff;
-    }
-    .box {
-      border: 1px solid #30363d;
-      border-radius: 10px;
-      padding: 20px;
-      margin: 20px auto;
-      max-width: 400px;
-      background-color: #161b22;
-    }
-    .asset {
-      font-size: 1.2em;
-      margin-bottom: 10px;
-      color: #8b949e;
-    }
-    .signal {
-      font-size: 2em;
-      margin: 10px 0;
-    }
-    .info {
-      font-size: 1em;
-    }
-  </style>
+    <title>Señal del Bot</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; background: #111; color: #eee; text-align: center; padding: 30px; }
+        .box {
+            display: inline-block;
+            background: #222;
+            padding: 20px;
+            margin: 15px;
+            border-radius: 15px;
+            box-shadow: 0 0 10px #444;
+            width: 280px;
+        }
+        h1 { color: #0ff; }
+        .asset-title { font-size: 22px; color: #0ff; margin-bottom: 10px; }
+        .result { font-size: 20px; margin: 8px 0; }
+    </style>
 </head>
 <body>
-  <h1>Señales de Trading (XGBoost)</h1>
+    <h1>Señales del Bot</h1>
+    <div class="box" id="btc-box">
+        <div class="asset-title">BTC/USDT</div>
+        <div id="btc-signal" class="result">Cargando...</div>
+        <div id="btc-confidence" class="result"></div>
+        <div id="btc-price" class="result"></div>
+    </div>
 
-  <div class="box">
-    <div class="asset">BTC/USDT</div>
-    <div id="btc-signal" class="signal">⏳ Cargando...</div>
-    <div id="btc-confidence" class="info"></div>
-    <div id="btc-price" class="info"></div>
-  </div>
+    <div class="box" id="eth-box">
+        <div class="asset-title">ETH/USDT</div>
+        <div id="eth-signal" class="result">Cargando...</div>
+        <div id="eth-confidence" class="result"></div>
+        <div id="eth-price" class="result"></div>
+    </div>
 
-  <div class="box">
-    <div class="asset">ETH/USDT</div>
-    <div id="eth-signal" class="signal">⏳ Cargando...</div>
-    <div id="eth-confidence" class="info"></div>
-    <div id="eth-price" class="info"></div>
-  </div>
+    <script>
+        async function cargarDatos() {
+            try {
+                const res = await fetch('/signal');
+                const data = await res.json();
 
-  <script>
-    async function cargarSeñales(par, prefix) {
-      try {
-        const res = await fetch(`/signal?pair=${par}`);
-        const data = await res.json();
+                document.getElementById("btc-signal").innerText = data["BTC/USDT"].signal || "Error";
+                document.getElementById("btc-confidence").innerText = "Confianza: " + (data["BTC/USDT"].confidence || "-");
+                document.getElementById("btc-price").innerText = "Precio: $" + (data["BTC/USDT"].price || "-");
 
-        if (data.error) {
-          document.getElementById(`${prefix}-signal`).innerText = "❌ Error: " + data.error;
-          return;
+                document.getElementById("eth-signal").innerText = data["ETH/USDT"].signal || "Error";
+                document.getElementById("eth-confidence").innerText = "Confianza: " + (data["ETH/USDT"].confidence || "-");
+                document.getElementById("eth-price").innerText = "Precio: $" + (data["ETH/USDT"].price || "-");
+            } catch (e) {
+                document.getElementById("btc-signal").innerText = "❌ Error al obtener señal.";
+                document.getElementById("eth-signal").innerText = "❌ Error al obtener señal.";
+            }
         }
 
-        document.getElementById(`${prefix}-signal`).innerText = data.signal || "Error";
-        document.getElementById(`${prefix}-confidence`).innerText = "Confianza: " + (data.confidence || "-");
-        document.getElementById(`${prefix}-price`).innerText = "Precio: $" + (data.price || "-");
-      } catch (e) {
-        document.getElementById(`${prefix}-signal`).innerText = "❌ Error JS: " + e.message;
-      }
-    }
-
-    document.addEventListener("DOMContentLoaded", function () {
-      cargarSeñales("BTC/USDT", "btc");
-      cargarSeñales("ETH/USDT", "eth");
-    });
-  </script>
+        cargarDatos();
+        setInterval(cargarDatos, 30000); // actualiza cada 30 segundos
+    </script>
 </body>
 </html>
 
