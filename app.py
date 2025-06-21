@@ -80,6 +80,9 @@ async def get_signal():
         last_row = X_scaled[-1].reshape(1, -1)
         pred = model.predict(last_row)[0]
         probas = model.predict_proba(last_row)[0]
+        pred = 2  # 🔺 Simula una señal de COMPRA (usa 0 para VENTA, 1 para NEUTRO)
+max_proba = 0.99  # Confianza simulada
+
         max_proba = max(probas)
         pred = 1 if max_proba < 0.6 else pred
         pred_label = {0: "🔻 VENTA", 1: "⏸️ NEUTRO", 2: "🔺 COMPRA"}[pred]
