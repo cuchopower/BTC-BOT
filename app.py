@@ -16,8 +16,9 @@ app = FastAPI()
 
 TELEGRAM_TOKEN = '7666801859:AAFPwyWI_gPtqJO9CxJzUHyi1hu9eEQAj-c'
 CHAT_ID = '7361418502'
-signal_history = []  # historial en memoria
 
+# Historial de señales (máximo 5)
+historial_senales = []
 
 def enviar_telegram(mensaje):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -27,12 +28,11 @@ def enviar_telegram(mensaje):
     except Exception as e:
         print("❌ Error al enviar Telegram:", str(e))
 
-
 @app.get("/signal")
 async def get_signal():
     try:
         exchange = ccxt.kucoin()
-        ohlcv = exchange.fetch_ohlcv("BTC/USDT", timeframe="5m", limit=500)
+        ohlcv = exchange.fetch_ohlcv("BTC/USDT", timeframe="5m", limit=200)
         df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
         df.set_index("timestamp", inplace=True)
@@ -53,8 +53,8 @@ async def get_signal():
         df['vol_anormal'] = df['volume'] > (df['volume'].rolling(20).mean() * 1.2)
 
         df["signal"] = 0
-        df.loc[(df["macd"] > df["macd_signal"]) & (df["trend"] == 1), "signal"] = 1
-        df.loc[(df["macd"] < df["macd_signal"]) & (df["trend"] == -1), "signal"] = -1
+        df.loc[(df["macd"] > df["macd_signal"]) & (df["rsi"] < 50) & (df["trend"] == 1) & df['vol_anormal'], "signal"] = 1
+        df.loc[(df["macd"] < df["macd_signal"]) & (df["rsi"] > 50) & (df["trend"] == -1) & df['vol_anormal'], "signal"] = -1
 
         df.dropna(inplace=True)
         if len(df) < 100:
@@ -68,6 +68,7 @@ async def get_signal():
 
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
+
         X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
         model = XGBClassifier(eval_metric="mlogloss", use_label_encoder=False)
@@ -81,21 +82,25 @@ async def get_signal():
         pred = model.predict(last_row)[0]
         probas = model.predict_proba(last_row)[0]
         max_proba = max(probas)
-        pred = 1 if max_proba < 0.4 else pred  # menor umbral de confianza
-        pred_label = {0: "🔻 VENTA", 1: "⏸️ NEUTRO", 2: "🔺 COMPRA"}[pred]
+        pred = 1 if max_proba < 0.5 else pred
+        pred_label = {0: "🔻 VENTA", 1: "⏸️ NEUTRO", 2: "🔹 COMPRA"}[pred]
 
         price = df['close'].iloc[-1]
         tp = round(price + 2 * df['atr'].iloc[-1], 2)
         sl = round(price - 1.5 * df['atr'].iloc[-1], 2)
 
-        timestamp = df.index[-1].strftime("%Y-%m-%d %H:%M")
-        señal_actual = {"timestamp": timestamp, "signal": pred_label, "price": round(price, 2), "confidence": f"{max_proba:.2%}"}
-
+        mensaje = f"Señal: {pred_label}\nConfianza: {max_proba:.2%}\nPrecio: ${price:.2f}\nTP: ${tp}\nSL: ${sl}"
         if pred != 1:
-            enviar_telegram(f"Señal: {pred_label}\nConfianza: {max_proba:.2%}\nPrecio: ${price:.2f}\nTP: ${tp}\nSL: ${sl}")
-            signal_history.append(señal_actual)
-            if len(signal_history) > 5:
-                signal_history.pop(0)
+            enviar_telegram(mensaje)
+
+        # Guardar en historial
+        historial_senales.append({
+            "signal": pred_label,
+            "price": price,
+            "confidence": f"{max_proba:.2%}",
+            "tp": tp,
+            "sl": sl
+        })
 
         return {
             "signal": pred_label,
@@ -104,18 +109,21 @@ async def get_signal():
             "tp": tp,
             "sl": sl,
             "accuracy": round(acc * 100, 2),
-            "f1_score": round(f1 * 100, 2),
-            "history": signal_history[::-1]  # últimas 5 señales (de la más reciente a la más antigua)
+            "f1_score": round(f1 * 100, 2)
         }
 
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/history")
+async def get_history():
+    return {"historial": historial_senales[-5:]}
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     with open("frontend.html", "r", encoding="utf-8") as f:
         return f.read()
+
 
 
 
