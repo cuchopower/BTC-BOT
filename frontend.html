@@ -2,44 +2,44 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Señales de Trading</title>
-  <meta http-equiv="refresh" content="180">
+  <title>Señal de Trading BTC</title>
+  <meta http-equiv="refresh" content="30">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 40px;
-      background: #ffffff;
-      color: #000000;
-    }
+    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #fff; }
     .signal { font-size: 48px; margin-top: 20px; }
-    .info { font-size: 22px; margin-top: 10px; }
+    .info { font-size: 24px; margin-top: 10px; }
+    .history { margin-top: 40px; text-align: left; display: inline-block; font-size: 20px; }
+    .history h2 { text-align: center; }
   </style>
 </head>
 <body>
   <h1>🔁 Señal Actual del Bot</h1>
   <div id="content">Cargando señal...</div>
+  <div class="history" id="history"></div>
 
   <script>
     fetch('/signal')
       .then(res => res.json())
       .then(data => {
-        if (data.error) {
-          document.getElementById('content').innerText = "❌ Error al obtener señal.";
-          return;
-        }
-
         const html = `
           <div class="signal">${data.signal}</div>
-          <div class="info">💵 Precio: $${data.price?.toFixed(2)}</div>
+          <div class="info">💵 Precio: $${data.price.toFixed(2)}</div>
+          <div class="info">🎯 TP: $${data.tp}</div>
+          <div class="info">🛡️ SL: $${data.sl}</div>
           <div class="info">📈 Confianza: ${data.confidence}</div>
-          <div class="info">🎯 Take Profit: $${data.take_profit}</div>
-          <div class="info">🛑 Stop Loss: $${data.stop_loss}</div>
-          <div class="info">📊 Accuracy: ${data.accuracy}</div>
-          <div class="info">🧠 F1 Score: ${data.f1_score}</div>
-          <div class="info">⏱️ Se actualiza cada 180 segundos</div>
+          <div class="info">📊 Accuracy: ${data.accuracy}% | F1 Score: ${data.f1_score}%</div>
+          <div class="info">⏱️ Se actualiza cada 30 segundos</div>
         `;
         document.getElementById('content').innerHTML = html;
+
+        if (data.history && data.history.length > 0) {
+          let historyHtml = '<h2>📜 Últimas Señales</h2><ul>';
+          data.history.forEach(item => {
+            historyHtml += `<li>${item.timestamp} - ${item.signal} (${item.confidence}) - $${item.price}</li>`;
+          });
+          historyHtml += '</ul>';
+          document.getElementById('history').innerHTML = historyHtml;
+        }
       })
       .catch(err => {
         document.getElementById('content').innerText = "❌ Error al obtener señal.";
@@ -47,6 +47,7 @@
   </script>
 </body>
 </html>
+
 
 
 
