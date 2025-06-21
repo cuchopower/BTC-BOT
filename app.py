@@ -11,12 +11,19 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score
 import requests
+import json
+from datetime import datetime
+import os
 
 app = FastAPI()
 
 TELEGRAM_TOKEN = '7666801859:AAFPwyWI_gPtqJO9CxJzUHyi1hu9eEQAj-c'
 CHAT_ID = '7361418502'
+SIGNALS_FILE = "signals_history.json"
 
+if not os.path.exists(SIGNALS_FILE):
+    with open(SIGNALS_FILE, 'w') as f:
+        json.dump([], f)
 
 def enviar_telegram(mensaje):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -25,7 +32,6 @@ def enviar_telegram(mensaje):
         requests.post(url, data=payload)
     except Exception as e:
         print("❌ Error al enviar Telegram:", str(e))
-
 
 @app.get("/signal")
 async def get_signal():
@@ -88,11 +94,8 @@ async def get_signal():
         tp = round(price + 2 * df['atr'].iloc[-1], 2)
         sl = round(price - 1.5 * df['atr'].iloc[-1], 2)
 
-        mensaje = f"Señal: {pred_label}\nConfianza: {max_proba:.2%}\nPrecio: ${price:.2f}\nTP: ${tp}\nSL: ${sl}"
-        if pred != 1:
-            enviar_telegram(mensaje)
-
-        return {
+        result = {
+            "timestamp": datetime.utcnow().isoformat(),
             "signal": pred_label,
             "confidence": f"{max_proba:.2%}",
             "price": price,
@@ -102,14 +105,30 @@ async def get_signal():
             "f1_score": round(f1 * 100, 2)
         }
 
+        if pred != 1:
+            enviar_telegram(f"Señal: {pred_label}\nConfianza: {max_proba:.2%}\nPrecio: ${price:.2f}\nTP: ${tp}\nSL: ${sl}")
+
+        with open(SIGNALS_FILE, 'r+') as f:
+            history = json.load(f)
+            history.append(result)
+            history = history[-5:]  # solo las últimas 5 señales
+            f.seek(0)
+            json.dump(history, f, indent=2)
+            f.truncate()
+
+        return {
+            "latest_signal": result,
+            "last_5_signals": history
+        }
+
     except Exception as e:
         return {"error": str(e)}
-
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     with open("frontend.html", "r", encoding="utf-8") as f:
         return f.read()
+
 
 
 
