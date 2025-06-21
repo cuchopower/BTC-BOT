@@ -76,6 +76,13 @@ def signal():
         }
     except Exception as e:
         return {"error": str(e)}
+from fastapi.responses import HTMLResponse
+import os
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    with open("frontend.html", "r", encoding="utf-8") as f:
+        return f.read()
 
   
 
