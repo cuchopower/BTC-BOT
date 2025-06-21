@@ -31,7 +31,7 @@ def enviar_telegram(mensaje):
 async def get_signal():
     try:
         exchange = ccxt.kucoin()
-        ohlcv = exchange.fetch_ohlcv("BTC/USDT", timeframe="5m", limit=300)
+        ohlcv = exchange.fetch_ohlcv("BTC/USDT", timeframe="5m", limit=200)
         df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
         df.set_index("timestamp", inplace=True)
@@ -49,7 +49,7 @@ async def get_signal():
         df['bullish_engulfing'] = (df['close'].shift(1) < df['open'].shift(1)) & (df['close'] > df['open']) & (df['close'] > df['open'].shift(1)) & (df['open'] < df['close'].shift(1))
         df['bearish_engulfing'] = (df['close'].shift(1) > df['open'].shift(1)) & (df['close'] < df['open']) & (df['close'] < df['open'].shift(1)) & (df['open'] > df['close'].shift(1))
         df['double_bottom'] = (df['low'].shift(2) > df['low'].shift(1)) & (df['low'].shift(1) < df['low']) & (df['close'] > df['close'].shift(1))
-        df['vol_anormal'] = df['volume'] > (df['volume'].rolling(20).mean() * 1.5)
+        df['vol_anormal'] = df['volume'] > (df['volume'].rolling(20).mean() * 1.2)
 
         df["signal"] = 0
         df.loc[(df["macd"] > df["macd_signal"]) & (df["rsi"] < 50) & (df["trend"] == 1) & df['vol_anormal'], "signal"] = 1
@@ -81,7 +81,7 @@ async def get_signal():
         pred = model.predict(last_row)[0]
         probas = model.predict_proba(last_row)[0]
         max_proba = max(probas)
-        pred = 1 if max_proba < 0.6 else pred
+        pred = 1 if max_proba < 0.5 else pred
         pred_label = {0: "🔻 VENTA", 1: "⏸️ NEUTRO", 2: "🔺 COMPRA"}[pred]
 
         price = df['close'].iloc[-1]
