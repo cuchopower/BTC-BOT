@@ -1,36 +1,85 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Señal de Trading BTC</title>
-  <meta http-equiv="refresh" content="30">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Señal de Trading</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; }
-    .signal { font-size: 48px; margin-top: 20px; }
-    .info { font-size: 24px; margin-top: 10px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #0d1117;
+      color: #f0f6fc;
+      text-align: center;
+      padding: 30px;
+    }
+    h1 {
+      color: #58a6ff;
+    }
+    .box {
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 400px;
+      background-color: #161b22;
+    }
+    .asset {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+      color: #8b949e;
+    }
+    .signal {
+      font-size: 2em;
+      margin: 10px 0;
+    }
+    .info {
+      font-size: 1em;
+    }
   </style>
 </head>
 <body>
-  <h1>🔁 Señal Actual del Bot</h1>
-  <div id="content">Cargando señal...</div>
+  <h1>Señales de Trading (XGBoost)</h1>
+
+  <div class="box">
+    <div class="asset">BTC/USDT</div>
+    <div id="btc-signal" class="signal">⏳ Cargando...</div>
+    <div id="btc-confidence" class="info"></div>
+    <div id="btc-price" class="info"></div>
+  </div>
+
+  <div class="box">
+    <div class="asset">ETH/USDT</div>
+    <div id="eth-signal" class="signal">⏳ Cargando...</div>
+    <div id="eth-confidence" class="info"></div>
+    <div id="eth-price" class="info"></div>
+  </div>
 
   <script>
-    fetch('/signal')
-      .then(res => res.json())
-      .then(data => {
-        const html = `
-          <div class="signal">${data.signal}</div>
-          <div class="info">💵 Precio: $${data.price.toFixed(2)}</div>
-          <div class="info">📈 Confianza: ${data.confidence}</div>
-          <div class="info">⏱️ Se actualiza cada 30 segundos</div>
-        `;
-        document.getElementById('content').innerHTML = html;
-      })
-      .catch(err => {
-        document.getElementById('content').innerText = "❌ Error al obtener señal.";
-      });
+    async function cargarSeñales(par, prefix) {
+      try {
+        const res = await fetch(`/signal?pair=${par}`);
+        const data = await res.json();
+
+        if (data.error) {
+          document.getElementById(`${prefix}-signal`).innerText = "❌ Error: " + data.error;
+          return;
+        }
+
+        document.getElementById(`${prefix}-signal`).innerText = data.signal || "Error";
+        document.getElementById(`${prefix}-confidence`).innerText = "Confianza: " + (data.confidence || "-");
+        document.getElementById(`${prefix}-price`).innerText = "Precio: $" + (data.price || "-");
+      } catch (e) {
+        document.getElementById(`${prefix}-signal`).innerText = "❌ Error JS: " + e.message;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      cargarSeñales("BTC/USDT", "btc");
+      cargarSeñales("ETH/USDT", "eth");
+    });
   </script>
 </body>
 </html>
+
 
 
