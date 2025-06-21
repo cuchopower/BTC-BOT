@@ -3,59 +3,70 @@
 <head>
   <meta charset="UTF-8">
   <title>Señal de Trading BTC</title>
-  <meta http-equiv="refresh" content="300">
+  <meta http-equiv="refresh" content="60">
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f4f4f4; }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+      background-color: #f7f7f7;
+    }
     .signal { font-size: 48px; margin-top: 20px; }
     .info { font-size: 24px; margin-top: 10px; }
     .history { margin-top: 40px; }
-    .history h2 { font-size: 28px; }
-    .history-item { font-size: 20px; margin: 8px 0; }
+    .history-title { font-size: 28px; margin-bottom: 10px; }
+    .history-item { font-size: 18px; margin: 4px 0; }
   </style>
 </head>
 <body>
   <h1>🔁 Señal Actual del Bot</h1>
-  <div id="current">Cargando señal...</div>
+  <div id="content">Cargando señal...</div>
 
   <div class="history">
-    <h2>📊 Últimas 5 Señales</h2>
+    <div class="history-title">📊 Últimas 5 Señales</div>
     <div id="history">Cargando historial...</div>
   </div>
 
   <script>
-    async function fetchSignals() {
-      try {
-        const currentRes = await fetch('/signal');
-        const current = await currentRes.json();
-        document.getElementById('current').innerHTML = `
-          <div class="signal">${current.signal}</div>
-          <div class="info">💵 Precio: $${current.price.toFixed(2)}</div>
-          <div class="info">📈 Confianza: ${current.confidence}</div>
-          <div class="info">🎯 TP: $${current.tp}</div>
-          <div class="info">🛑 SL: $${current.sl}</div>
-          <div class="info">✅ Accuracy: ${current.accuracy}% | F1: ${current.f1_score}%</div>
-          <div class="info">⏱️ Se actualiza cada 300 segundos</div>
-        `;
+    function cargarDatos() {
+      fetch('/signal')
+        .then(res => res.json())
+        .then(data => {
+          const html = `
+            <div class="signal">${data.signal}</div>
+            <div class="info">💵 Precio: $${data.price?.toFixed(2) || '-'}</div>
+            <div class="info">📈 Confianza: ${data.confidence}</div>
+            <div class="info">🎯 TP: $${data.tp}</div>
+            <div class="info">🛡️ SL: $${data.sl}</div>
+            <div class="info">✅ Accuracy: ${data.accuracy}%</div>
+            <div class="info">📊 F1-score: ${data.f1_score}%</div>
+            <div class="info">⏱️ Se actualiza cada 60 segundos</div>
+          `;
+          document.getElementById('content').innerHTML = html;
+        })
+        .catch(err => {
+          document.getElementById('content').innerText = "❌ Error al obtener señal.";
+        });
 
-        const historyRes = await fetch('/history');
-        const history = await historyRes.json();
-        document.getElementById('history').innerHTML = history
-          .map(item => `
-            <div class="history-item">
-              ${item.time} | ${item.signal} | Precio: $${item.price} | Confianza: ${item.confidence}
-            </div>
-          `).join('');
-      } catch (err) {
-        document.getElementById('current').innerText = "❌ Error al obtener señal.";
-        document.getElementById('history').innerText = "❌ Error al cargar historial.";
-      }
+      fetch('/history')
+        .then(res => res.json())
+        .then(data => {
+          const historialHtml = data.map(item =>
+            `<div class="history-item">🕒 ${item.time} | ${item.signal} | 💰 $${item.price} | 🔍 ${item.confidence}</div>`
+          ).join('');
+          document.getElementById('history').innerHTML = historialHtml;
+        })
+        .catch(err => {
+          document.getElementById('history').innerText = "❌ Error al cargar historial.";
+        });
     }
 
-    fetchSignals();
-    setInterval(fetchSignals, 30000); // cada 30 segundos
+    cargarDatos();
+    setInterval(cargarDatos, 60000);
   </script>
 </body>
 </html>
+
 
 
 
