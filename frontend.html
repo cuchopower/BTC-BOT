@@ -2,14 +2,15 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Señal de Trading BTC</title>
+  <title>Señales de Trading BTC</title>
   <meta http-equiv="refresh" content="30">
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #fff; }
+    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background-color: #f9f9f9; }
     .signal { font-size: 48px; margin-top: 20px; }
     .info { font-size: 24px; margin-top: 10px; }
-    .history { margin-top: 40px; text-align: left; display: inline-block; font-size: 20px; }
-    .history h2 { text-align: center; }
+    .history { margin-top: 40px; }
+    .history h2 { font-size: 28px; margin-bottom: 10px; }
+    .history-entry { font-size: 20px; margin: 5px 0; }
   </style>
 </head>
 <body>
@@ -24,21 +25,21 @@
         const html = `
           <div class="signal">${data.signal}</div>
           <div class="info">💵 Precio: $${data.price.toFixed(2)}</div>
+          <div class="info">📈 Confianza: ${data.confidence}</div>
           <div class="info">🎯 TP: $${data.tp}</div>
           <div class="info">🛡️ SL: $${data.sl}</div>
-          <div class="info">📈 Confianza: ${data.confidence}</div>
-          <div class="info">📊 Accuracy: ${data.accuracy}% | F1 Score: ${data.f1_score}%</div>
+          <div class="info">✅ Accuracy: ${data.accuracy}%</div>
+          <div class="info">📊 F1 Score: ${data.f1_score}%</div>
           <div class="info">⏱️ Se actualiza cada 30 segundos</div>
         `;
         document.getElementById('content').innerHTML = html;
 
         if (data.history && data.history.length > 0) {
-          let historyHtml = '<h2>📜 Últimas Señales</h2><ul>';
-          data.history.forEach(item => {
-            historyHtml += `<li>${item.timestamp} - ${item.signal} (${item.confidence}) - $${item.price}</li>`;
+          let historyHtml = "<h2>📜 Últimas 5 señales</h2>";
+          data.history.slice().reverse().forEach(entry => {
+            historyHtml += `<div class="history-entry">${entry.timestamp} - ${entry.signal} @ $${entry.price.toFixed(2)} (${entry.confidence})</div>`;
           });
-          historyHtml += '</ul>';
-          document.getElementById('history').innerHTML = historyHtml;
+          document.getElementById("history").innerHTML = historyHtml;
         }
       })
       .catch(err => {
@@ -47,6 +48,7 @@
   </script>
 </body>
 </html>
+
 
 
 
