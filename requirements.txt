@@ -3,9 +3,9 @@ uvicorn
 ccxt
 pandas
 numpy
+ta
 scikit-learn
 xgboost
-ta
 requests
 
 
