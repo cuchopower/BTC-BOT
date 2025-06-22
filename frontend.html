@@ -1,52 +1,34 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Señales de Trading BTC</title>
+  <title>Señal de Trading BTC</title>
+  <meta http-equiv="refresh" content="30">
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; }
+    .signal { font-size: 48px; margin-top: 20px; }
+    .info { font-size: 24px; margin-top: 10px; }
+  </style>
 </head>
 <body>
-  <h1>Señal Actual del Bot</h1>
-  <div id="signal">Cargando...</div>
-  <h2>📊 Últimas 5 Señales</h2>
-  <div id="history">Cargando historial...</div>
+  <h1>🔁 Señal Actual del Bot</h1>
+  <div id="content">Cargando señal...</div>
 
   <script>
-    async function cargarDatos() {
-      try {
-        const res = await fetch('/signal');
-        const data = await res.json();
-        let html = `<p><strong>${data.signal}</strong></p>
-                    <p>💵 Precio: $${parseFloat(data.price).toFixed(2)}</p>
-                    <p>📈 Confianza: ${data.confidence}</p>`;
-
-        if (data.signal !== "⏸️ NEUTRO") {
-          html += `<p>🎯 TP: $${parseFloat(data.tp).toFixed(2)}</p>
-                   <p>🛑 SL: $${parseFloat(data.sl).toFixed(2)}</p>`;
-        }
-
-        html += `<p>✅ Precisión modelo: ${data.accuracy}%</p>
-                 <p>📊 F1-score: ${data.f1_score}%</p>`;
-
-        document.getElementById("signal").innerHTML = html;
-      } catch (error) {
-        document.getElementById("signal").innerHTML = "❌ Error al obtener señal.";
-      }
-
-      try {
-        const resHist = await fetch('/history');
-        const history = await resHist.json();
-        let histHtml = "";
-        history.slice().reverse().forEach(item => {
-          histHtml += `<p>${item.time} - ${item.signal} - $${item.price} - ${item.confidence}</p>`;
-        });
-        document.getElementById("history").innerHTML = histHtml;
-      } catch (e) {
-        document.getElementById("history").innerHTML = "❌ Error al cargar historial.";
-      }
-    }
-
-    cargarDatos();
-    setInterval(cargarDatos, 60000);
+    fetch('/signal')
+      .then(res => res.json())
+      .then(data => {
+        const html = `
+          <div class="signal">${data.signal}</div>
+          <div class="info">💵 Precio: $${data.price.toFixed(2)}</div>
+          <div class="info">📈 Confianza: ${data.confidence}</div>
+          <div class="info">⏱️ Se actualiza cada 30 segundos</div>
+        `;
+        document.getElementById('content').innerHTML = html;
+      })
+      .catch(err => {
+        document.getElementById('content').innerText = "❌ Error al obtener señal.";
+      });
   </script>
 </body>
 </html>
