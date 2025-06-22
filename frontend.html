@@ -3,69 +3,63 @@
 <head>
   <meta charset="UTF-8">
   <title>Señal de Trading BTC</title>
-  <meta http-equiv="refresh" content="60">
+  <meta http-equiv="refresh" content="30">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 40px;
-      background-color: #f7f7f7;
-    }
-    .signal { font-size: 48px; margin-top: 20px; }
-    .info { font-size: 24px; margin-top: 10px; }
-    .history { margin-top: 40px; }
-    .history-title { font-size: 28px; margin-bottom: 10px; }
-    .history-item { font-size: 18px; margin: 4px 0; }
+    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f8f9fa; color: #333; }
+    h1 { font-size: 32px; margin-bottom: 20px; }
+    .signal { font-size: 48px; margin: 10px 0; }
+    .info { font-size: 20px; margin: 5px 0; }
+    .history-box { margin-top: 30px; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); display: inline-block; text-align: left; }
+    .history-item { margin-bottom: 10px; }
   </style>
 </head>
 <body>
   <h1>🔁 Señal Actual del Bot</h1>
-  <div id="content">Cargando señal...</div>
+  <div id="signal">Cargando señal...</div>
 
-  <div class="history">
-    <div class="history-title">📊 Últimas 5 Señales</div>
+  <div class="history-box">
+    <h2>📊 Últimas 5 Señales</h2>
     <div id="history">Cargando historial...</div>
   </div>
 
   <script>
-    function cargarDatos() {
-      fetch('/signal')
-        .then(res => res.json())
-        .then(data => {
-          const html = `
-            <div class="signal">${data.signal}</div>
-            <div class="info">💵 Precio: $${data.price?.toFixed(2) || '-'}</div>
-            <div class="info">📈 Confianza: ${data.confidence}</div>
-            <div class="info">🎯 TP: $${data.tp}</div>
-            <div class="info">🛡️ SL: $${data.sl}</div>
-            <div class="info">✅ Accuracy: ${data.accuracy}%</div>
-            <div class="info">📊 F1-score: ${data.f1_score}%</div>
-            <div class="info">⏱️ Se actualiza cada 60 segundos</div>
-          `;
-          document.getElementById('content').innerHTML = html;
-        })
-        .catch(err => {
-          document.getElementById('content').innerText = "❌ Error al obtener señal.";
-        });
-
-      fetch('/history')
-        .then(res => res.json())
-        .then(data => {
-          const historialHtml = data.map(item =>
-            `<div class="history-item">🕒 ${item.time} | ${item.signal} | 💰 $${item.price} | 🔍 ${item.confidence}</div>`
-          ).join('');
-          document.getElementById('history').innerHTML = historialHtml;
-        })
-        .catch(err => {
-          document.getElementById('history').innerText = "❌ Error al cargar historial.";
-        });
+    async function cargarSenal() {
+      try {
+        const res = await fetch('/signal');
+        const data = await res.json();
+        const html = `
+          <div class="signal">${data.signal}</div>
+          <div class="info">💵 Precio: $${data.price?.toFixed(2) ?? '-'}</div>
+          <div class="info">📈 Confianza: ${data.confidence}</div>
+          <div class="info">🎯 TP: $${data.tp ?? '-'}</div>
+          <div class="info">🛑 SL: $${data.sl ?? '-'}</div>
+          <div class="info">✅ Precisión modelo: ${data.accuracy ?? '-'}%</div>
+        `;
+        document.getElementById('signal').innerHTML = html;
+      } catch {
+        document.getElementById('signal').innerHTML = "❌ Error al obtener señal.";
+      }
     }
 
-    cargarDatos();
-    setInterval(cargarDatos, 60000);
+    async function cargarHistorial() {
+      try {
+        const res = await fetch('/history');
+        const historial = await res.json();
+        let html = historial.reverse().map(item =>
+          `<div class="history-item">🕒 ${item.time} - ${item.signal} - 💵 $${item.price} - 📈 ${item.confidence}</div>`
+        ).join('');
+        document.getElementById('history').innerHTML = html || "Sin historial todavía.";
+      } catch {
+        document.getElementById('history').innerHTML = "❌ Error al cargar historial.";
+      }
+    }
+
+    cargarSenal();
+    cargarHistorial();
   </script>
 </body>
 </html>
+
 
 
 
