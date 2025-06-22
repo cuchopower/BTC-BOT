@@ -49,7 +49,6 @@ async def get_signal():
         df['obv'] = (np.sign(df['close'].diff()) * df['volume']).fillna(0).cumsum()
         df['vol_anormal'] = df['volume'] > (df['volume'].rolling(20).mean() * 1.2)
 
-        # Señales simples
         df["signal"] = 0
         df.loc[(df["macd"] > df["macd_signal"]) & (df["rsi"] < 50) & (df["trend"] == 1) & df['vol_anormal'], "signal"] = 1
         df.loc[(df["macd"] < df["macd_signal"]) & (df["rsi"] > 50) & (df["trend"] == -1) & df['vol_anormal'], "signal"] = -1
@@ -58,15 +57,15 @@ async def get_signal():
         if len(df) < 100:
             return {"signal": "⏸️ NEUTRO", "confidence": "0%", "price": df['close'].iloc[-1]}
 
-        # Preparación de datos
         X = df[["rsi", "ema20", "ema50", "macd", "macd_signal", "atr", "trend", "obv"]]
-        y = df["signal"].replace({-1: 0, 0: 1, 1: 2})  # 0=venta, 1=neutro, 2=compra
+        y = df["signal"].replace({-1: 0, 0: 1, 1: 2})
 
         if y.nunique() < 2:
             return {"signal": "⏸️ NEUTRO", "confidence": "0%", "price": df['close'].iloc[-1]}
 
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
+
         X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
         model = XGBClassifier(eval_metric="mlogloss", use_label_encoder=False)
@@ -84,20 +83,22 @@ async def get_signal():
         pred_label = {0: "🔻 VENTA", 1: "⏸️ NEUTRO", 2: "🔺 COMPRA"}[pred]
 
         price = df['close'].iloc[-1]
-        tp = sl = None
-        if pred != 1:
-            if pred == 2:  # COMPRA
-                tp = round(price + 2 * df['atr'].iloc[-1], 2)
-                sl = round(price - 1.5 * df['atr'].iloc[-1], 2)
-            elif pred == 0:  # VENTA
-                tp = round(price - 2 * df['atr'].iloc[-1], 2)
-                sl = round(price + 1.5 * df['atr'].iloc[-1], 2)
 
-        mensaje = f"Señal: {pred_label}\nConfianza: {max_proba:.2%}\nPrecio: ${price:.2f}"
-        if tp and sl:
-            mensaje += f"\nTP: ${tp}\nSL: ${sl}"
+        response = {
+            "signal": pred_label,
+            "confidence": f"{max_proba:.2%}",
+            "price": price,
+            "accuracy": round(acc * 100, 2),
+            "f1_score": round(f1 * 100, 2)
+        }
 
-        if pred != 1:
+        if pred != 1:  # Solo calcular TP y SL si es COMPRA o VENTA
+            tp = round(price + 2 * df['atr'].iloc[-1], 2)
+            sl = round(price - 1.5 * df['atr'].iloc[-1], 2)
+            response["tp"] = tp
+            response["sl"] = sl
+
+            mensaje = f"Señal: {pred_label}\nConfianza: {max_proba:.2%}\nPrecio: ${price:.2f}\nTP: ${tp}\nSL: ${sl}"
             enviar_telegram(mensaje)
 
         historial.append({
@@ -109,15 +110,7 @@ async def get_signal():
         if len(historial) > 5:
             historial.pop(0)
 
-        return {
-            "signal": pred_label,
-            "confidence": f"{max_proba:.2%}",
-            "price": price,
-            "tp": tp,
-            "sl": sl,
-            "accuracy": round(acc * 100, 2),
-            "f1_score": round(f1 * 100, 2)
-        }
+        return response
 
     except Exception as e:
         print("❌ Error en /signal:", str(e))
