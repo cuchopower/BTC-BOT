@@ -1,4 +1,3 @@
-# app.py
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import ccxt
@@ -18,7 +17,6 @@ app = FastAPI()
 
 TELEGRAM_TOKEN = '7666801859:AAFPwyWI_gPtqJO9CxJzUHyi1hu9eEQAj-c'
 CHAT_ID = '7361418502'
-
 historial = []
 
 def enviar_telegram(mensaje):
@@ -38,6 +36,7 @@ async def get_signal():
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
         df.set_index("timestamp", inplace=True)
 
+        # Indicadores técnicos
         df["rsi"] = RSIIndicator(close=df["close"]).rsi()
         df["ema20"] = EMAIndicator(close=df["close"], window=20).ema_indicator()
         df["ema50"] = EMAIndicator(close=df["close"], window=50).ema_indicator()
@@ -50,23 +49,24 @@ async def get_signal():
         df['obv'] = (np.sign(df['close'].diff()) * df['volume']).fillna(0).cumsum()
         df['vol_anormal'] = df['volume'] > (df['volume'].rolling(20).mean() * 1.2)
 
+        # Señales simples
         df["signal"] = 0
-        df.loc[(df["macd"] > df["macd_signal"]) & (df["rsi"] > 50) & (df["trend"] == 1) & df['vol_anormal'], "signal"] = 1
-        df.loc[(df["macd"] < df["macd_signal"]) & (df["rsi"] < 50) & (df["trend"] == -1) & df['vol_anormal'], "signal"] = -1
+        df.loc[(df["macd"] > df["macd_signal"]) & (df["rsi"] < 50) & (df["trend"] == 1) & df['vol_anormal'], "signal"] = 1
+        df.loc[(df["macd"] < df["macd_signal"]) & (df["rsi"] > 50) & (df["trend"] == -1) & df['vol_anormal'], "signal"] = -1
 
         df.dropna(inplace=True)
         if len(df) < 100:
             return {"signal": "⏸️ NEUTRO", "confidence": "0%", "price": df['close'].iloc[-1]}
 
+        # Preparación de datos
         X = df[["rsi", "ema20", "ema50", "macd", "macd_signal", "atr", "trend", "obv"]]
-        y = df["signal"].replace({-1: 0, 0: 1, 1: 2})
+        y = df["signal"].replace({-1: 0, 0: 1, 1: 2})  # 0=venta, 1=neutro, 2=compra
 
         if y.nunique() < 2:
             return {"signal": "⏸️ NEUTRO", "confidence": "0%", "price": df['close'].iloc[-1]}
 
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
-
         X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
         model = XGBClassifier(eval_metric="mlogloss", use_label_encoder=False)
@@ -85,12 +85,18 @@ async def get_signal():
 
         price = df['close'].iloc[-1]
         tp = sl = None
-    if pred != 1:  # Solo calcular TP y SL si la señal no es NEUTRO
-    tp = round(price + 2 * df['atr'].iloc[-1], 2) if pred == 2 else round(price - 2 * df['atr'].iloc[-1], 2)
-    sl = round(price - 1.5 * df['atr'].iloc[-1], 2) if pred == 2 else round(price + 1.5 * df['atr'].iloc[-1], 2)
+        if pred != 1:
+            if pred == 2:  # COMPRA
+                tp = round(price + 2 * df['atr'].iloc[-1], 2)
+                sl = round(price - 1.5 * df['atr'].iloc[-1], 2)
+            elif pred == 0:  # VENTA
+                tp = round(price - 2 * df['atr'].iloc[-1], 2)
+                sl = round(price + 1.5 * df['atr'].iloc[-1], 2)
 
+        mensaje = f"Señal: {pred_label}\nConfianza: {max_proba:.2%}\nPrecio: ${price:.2f}"
+        if tp and sl:
+            mensaje += f"\nTP: ${tp}\nSL: ${sl}"
 
-        mensaje = f"Señal: {pred_label}\nConfianza: {max_proba:.2%}\nPrecio: ${price:.2f}\nTP: ${tp}\nSL: ${sl}"
         if pred != 1:
             enviar_telegram(mensaje)
 
@@ -125,6 +131,7 @@ async def get_history():
 async def read_root():
     with open("frontend.html", "r", encoding="utf-8") as f:
         return f.read()
+
 
 
 
