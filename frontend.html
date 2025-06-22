@@ -1,116 +1,56 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Bot de Trading BTC</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #121212;
-      color: #e0e0e0;
-      text-align: center;
-      padding: 30px;
-    }
-    h1 {
-      color: #03dac6;
-    }
-    .signal-box, .history-box {
-      background-color: #1f1f1f;
-      padding: 20px;
-      border-radius: 10px;
-      margin: 20px auto;
-      width: 90%;
-      max-width: 500px;
-    }
-    .label {
-      font-weight: bold;
-      color: #bb86fc;
-    }
-    .value {
-      font-size: 1.4em;
-    }
-    .history-entry {
-      border-top: 1px solid #333;
-      margin-top: 10px;
-      padding-top: 10px;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <title>Señales de Trading BTC</title>
 </head>
 <body>
-  <h1>📈 Bot de Trading BTC</h1>
-
-  <div class="signal-box" id="current-signal">
-    <div class="label">Señal Actual del Bot</div>
-    <div class="value" id="signal">Cargando...</div>
-    <div>💵 Precio: <span id="price">-</span></div>
-    <div>📈 Confianza: <span id="confidence">-</span></div>
-    <div id="tp-sl" style="display: none;">
-      <div>🎯 TP: <span id="tp">-</span></div>
-      <div>🛑 SL: <span id="sl">-</span></div>
-    </div>
-    <div>✅ Precisión modelo: <span id="accuracy">-</span>%</div>
-    <div>📊 F1-score: <span id="f1">-</span>%</div>
-  </div>
-
-  <div class="history-box" id="signal-history">
-    <div class="label">📊 Últimas 5 Señales</div>
-    <div id="history-list">Cargando historial...</div>
-  </div>
+  <h1>Señal Actual del Bot</h1>
+  <div id="signal">Cargando...</div>
+  <h2>📊 Últimas 5 Señales</h2>
+  <div id="history">Cargando historial...</div>
 
   <script>
     async function cargarDatos() {
       try {
-        const res = await fetch("/signal");
+        const res = await fetch('/signal');
         const data = await res.json();
-        document.getElementById("signal").textContent = data.signal;
-        document.getElementById("price").textContent = `$${parseFloat(data.price).toFixed(2)}`;
-        document.getElementById("confidence").textContent = data.confidence;
-        document.getElementById("accuracy").textContent = data.accuracy;
-        document.getElementById("f1").textContent = data.f1_score;
+        let html = `<p><strong>${data.signal}</strong></p>
+                    <p>💵 Precio: $${parseFloat(data.price).toFixed(2)}</p>
+                    <p>📈 Confianza: ${data.confidence}</p>`;
 
-        if (data.tp && data.sl) {
-          document.getElementById("tp-sl").style.display = "block";
-          document.getElementById("tp").textContent = `$${parseFloat(data.tp).toFixed(2)}`;
-          document.getElementById("sl").textContent = `$${parseFloat(data.sl).toFixed(2)}`;
-        } else {
-          document.getElementById("tp-sl").style.display = "none";
+        if (data.signal !== "⏸️ NEUTRO") {
+          html += `<p>🎯 TP: $${parseFloat(data.tp).toFixed(2)}</p>
+                   <p>🛑 SL: $${parseFloat(data.sl).toFixed(2)}</p>`;
         }
-      } catch (err) {
-        document.getElementById("signal").textContent = "❌ Error al obtener señal.";
+
+        html += `<p>✅ Precisión modelo: ${data.accuracy}%</p>
+                 <p>📊 F1-score: ${data.f1_score}%</p>`;
+
+        document.getElementById("signal").innerHTML = html;
+      } catch (error) {
+        document.getElementById("signal").innerHTML = "❌ Error al obtener señal.";
       }
 
       try {
-        const res = await fetch("/history");
-        const data = await res.json();
-        const historyDiv = document.getElementById("history-list");
-        historyDiv.innerHTML = "";
-
-        if (data.length === 0) {
-          historyDiv.textContent = "No hay señales recientes.";
-          return;
-        }
-
-        data.slice().reverse().forEach(item => {
-          const entry = document.createElement("div");
-          entry.className = "history-entry";
-          entry.innerHTML = `
-            <div>${item.time}</div>
-            <div>${item.signal}</div>
-            <div>💵 ${item.price}</div>
-            <div>📈 ${item.confidence}</div>
-          `;
-          historyDiv.appendChild(entry);
+        const resHist = await fetch('/history');
+        const history = await resHist.json();
+        let histHtml = "";
+        history.slice().reverse().forEach(item => {
+          histHtml += `<p>${item.time} - ${item.signal} - $${item.price} - ${item.confidence}</p>`;
         });
-      } catch (err) {
-        document.getElementById("history-list").textContent = "❌ Error al cargar historial.";
+        document.getElementById("history").innerHTML = histHtml;
+      } catch (e) {
+        document.getElementById("history").innerHTML = "❌ Error al cargar historial.";
       }
     }
 
     cargarDatos();
-    setInterval(cargarDatos, 60000); // Actualizar cada minuto
+    setInterval(cargarDatos, 60000);
   </script>
 </body>
 </html>
+
 
 
 
