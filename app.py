@@ -51,8 +51,8 @@ async def get_signal():
         df['vol_anormal'] = df['volume'] > (df['volume'].rolling(20).mean() * 1.2)
 
         df["signal"] = 0
-        df.loc[(df["macd"] > df["macd_signal"]) & (df["rsi"] < 50) & (df["trend"] == 1) & df['vol_anormal'], "signal"] = 1
-        df.loc[(df["macd"] < df["macd_signal"]) & (df["rsi"] > 50) & (df["trend"] == -1) & df['vol_anormal'], "signal"] = -1
+        df.loc[(df["macd"] > df["macd_signal"]) & (df["rsi"] > 50) & (df["trend"] == 1) & df['vol_anormal'], "signal"] = 1
+        df.loc[(df["macd"] < df["macd_signal"]) & (df["rsi"] < 50) & (df["trend"] == -1) & df['vol_anormal'], "signal"] = -1
 
         df.dropna(inplace=True)
         if len(df) < 100:
@@ -122,6 +122,7 @@ async def get_history():
 async def read_root():
     with open("frontend.html", "r", encoding="utf-8") as f:
         return f.read()
+
 
 
 
