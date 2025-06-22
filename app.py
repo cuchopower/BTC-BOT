@@ -84,8 +84,11 @@ async def get_signal():
         pred_label = {0: "🔻 VENTA", 1: "⏸️ NEUTRO", 2: "🔺 COMPRA"}[pred]
 
         price = df['close'].iloc[-1]
-        tp = round(price + 2 * df['atr'].iloc[-1], 2)
-        sl = round(price - 1.5 * df['atr'].iloc[-1], 2)
+        tp = sl = None
+    if pred != 1:  # Solo calcular TP y SL si la señal no es NEUTRO
+    tp = round(price + 2 * df['atr'].iloc[-1], 2) if pred == 2 else round(price - 2 * df['atr'].iloc[-1], 2)
+    sl = round(price - 1.5 * df['atr'].iloc[-1], 2) if pred == 2 else round(price + 1.5 * df['atr'].iloc[-1], 2)
+
 
         mensaje = f"Señal: {pred_label}\nConfianza: {max_proba:.2%}\nPrecio: ${price:.2f}\nTP: ${tp}\nSL: ${sl}"
         if pred != 1:
